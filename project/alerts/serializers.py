@@ -6,7 +6,7 @@ class StockSerializer(serializers.ModelSerializer):
     class Meta:
         model = Stock
         fields = ['id', 'symbol', 'name', 'price']
-        read_only_fields = ['id', 'price']  # Price comes from API, not user input
+        read_only_fields = ['id', 'price'] 
 
 class AlertSerializer(serializers.ModelSerializer):
     stock = StockSerializer(read_only=True)

@@ -22,7 +22,10 @@ User = get_user_model()
 # ------------------- Custom Login -------------------
 
 class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
-    username_field = 'email'
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['email'] = serializers.EmailField()
+        self.fields.pop(self.username_field)  # remove "username"
 
     def validate(self, attrs):
         email = attrs.get("email")
@@ -33,19 +36,27 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
         except User.DoesNotExist:
             raise serializers.ValidationError({"email": "No user with this email."})
 
-        if not user.check_password(password):
+        user = authenticate(username=user.username, password=password)
+        if user is None:
             raise serializers.ValidationError({"password": "Incorrect password."})
 
-        refresh = self.get_token(user)
-        return {
-            'refresh': str(refresh),
-            'access': str(refresh.access_token),
-            'user': {
-                "id": user.id,
-                "username": user.username,
-                "email": user.email,
-            }
+        data = super().validate({"username": user.username, "password": password})
+        data["token"] = data.pop("access")
+        data["user"] = {
+            "id": user.id,
+            "username": user.username,
+            "email": user.email,
+            "role": user.type,
         }
+        return data
+
+    @classmethod
+    def get_token(cls, user):
+        token = super().get_token(user)
+        token["email"] = user.email
+        token["role"] = user.type
+        return token
+
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer

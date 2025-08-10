@@ -23,16 +23,13 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-
-    # Your apps
     'accounts',
-
-    # Third-party
+    'alerts',
     'rest_framework',
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     'corsheaders',
-    'social_django',  # Required for Google OAuth
+    'social_django',
 ]
 
 MIDDLEWARE = [
@@ -78,7 +75,7 @@ WSGI_APPLICATION = 'project.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'profile',
+        'NAME': 'alerts',
         'USER': 'postgres',
         'PASSWORD': 'atia123',
         'PORT': '5432',
@@ -160,3 +157,7 @@ EMAIL_USE_SSL = os.environ.get('EMAIL_USE_SSL', 'false').lower() in ('true', '1'
 EMAIL_HOST_USER = os.environ.get('EMAIL_HOST_USER')
 EMAIL_HOST_PASSWORD = os.environ.get('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', EMAIL_HOST_USER)
+STOCK_API_KEY=os.environ.get('STOCK_API_KEY')
+
+CELERY_BROKER_URL = 'redis://localhost:6379/0'
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'

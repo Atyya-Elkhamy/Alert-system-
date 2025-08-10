@@ -3,6 +3,7 @@ from django.contrib.auth.models import AbstractUser
 from django.utils import timezone
 
 class User(AbstractUser):
+    email = models.EmailField(unique=True)
     phone = models.CharField(max_length=15,null=True,blank=True)
     otp = models.CharField(max_length=6,null=True,blank=True)
     is_verified = models.BooleanField(default=False)
