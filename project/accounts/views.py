@@ -25,38 +25,31 @@ class CustomTokenObtainPairSerializer(TokenObtainPairSerializer):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['email'] = serializers.EmailField()
-        self.fields.pop(self.username_field)  # remove "username"
+        self.fields.pop(self.username_field)
 
     def validate(self, attrs):
         email = attrs.get("email")
         password = attrs.get("password")
-
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             raise serializers.ValidationError({"email": "No user with this email."})
-
         user = authenticate(username=user.username, password=password)
         if user is None:
             raise serializers.ValidationError({"password": "Incorrect password."})
-
         data = super().validate({"username": user.username, "password": password})
         data["token"] = data.pop("access")
         data["user"] = {
             "id": user.id,
             "username": user.username,
             "email": user.email,
-            "role": user.type,
         }
         return data
-
     @classmethod
     def get_token(cls, user):
         token = super().get_token(user)
         token["email"] = user.email
-        token["role"] = user.type
         return token
-
 
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
@@ -156,12 +149,20 @@ class GoogleAuthView(APIView):
 
 # ------------------- OTP Email -------------------
 
+def send_plain_email(email, subject, message):
+    from_email = settings.DEFAULT_FROM_EMAIL
+    recipient_list = [email]
+    return send_mail(
+        subject,
+        message,
+        from_email,
+        recipient_list,
+        fail_silently=False
+    )
+
+
+
 def send_otp_email(email, otp, message):
-    # subject = 'Your OTP Code'
-    # full_message = f'{message} : {otp}'
-    # from_email = settings.EMAIL_HOST_USER
-    # recipient_list = [email]
-    # return send_mail(subject, full_message, from_email, recipient_list)
     subject = 'Your OTP Code'
     from_email = settings.DEFAULT_FROM_EMAIL
     message='Your OTP to Change Password Is '
@@ -172,7 +173,6 @@ def send_otp_email(email, otp, message):
         <h2 style="color:#2E86C1;">{otp}</h2>
         <p>This OTP is valid for 10 minutes.</p>
         """
-
     msg = EmailMultiAlternatives(subject, text_content, from_email, recipient_list)
     msg.attach_alternative(html_content, "text/html")
     return msg.send()
@@ -206,7 +206,6 @@ class OTPVerificationSerializer(serializers.Serializer):
 
 class OTPVerificationView(APIView):
     permission_classes = [AllowAny]
-
     def post(self, request):
         serializer = OTPVerificationSerializer(data=request.data)
         if serializer.is_valid():
@@ -216,7 +215,6 @@ class OTPVerificationView(APIView):
                 user = User.objects.get(email=email, otp=otp)
                 if user.expired_at and timezone.now() > user.expired_at:
                     return Response({"error": "OTP expired."}, status=400)
-
                 user.is_verified = True
                 user.otp = None
                 user.expired_at = None
@@ -224,7 +222,6 @@ class OTPVerificationView(APIView):
                 return Response({"message": "OTP verified successfully."}, status=200)
             except User.DoesNotExist:
                 return Response({"error": "Invalid OTP or email."}, status=400)
-
         return Response(serializer.errors, status=400)
 
 class ChangePasswordView(APIView):
@@ -233,35 +230,26 @@ class ChangePasswordView(APIView):
     def post(self, request):
         email = request.data.get('email')
         new_password = request.data.get('new_password')
-
         if not email or not new_password:
             return Response({"error": "Email and new password are required."}, status=400)
-
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
             return Response({"error": "User not found."}, status=404)
-
-        # 🔐 Check if the OTP was verified
         if not user.is_verified:
             return Response({"error": "OTP not verified."}, status=400)
-
-        # Optional: validate password strength
         if len(new_password) < 8:
             return Response({"error": "Password must be at least 8 characters."}, status=400)
-
         user.set_password(new_password)
-        user.is_verified = False  # Reset verification flag
+        user.is_verified = False 
         user.otp = None
         user.expired_at = None
         user.save()
-
         return Response({"message": "Password updated successfully."}, status=200)
 
 
 class DeleteAccountView(APIView):
     permission_classes = [IsAuthenticated]
-
     def delete(self, request):
         user = request.user
         user.delete()
